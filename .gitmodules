@@ -1,0 +1,7 @@
+[submodule "private-config"]
+	path = private-config
+	url = https://git.woa.com/tccc/private-config.git
+[submodule "tencentlint"]
+	path = tencentlint
+	url = https://git.woa.com/standards/go.git
+    ignore = dirty

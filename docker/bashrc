@@ -1,0 +1,6 @@
+LOCAL_IP=$(hostname -I)
+USER=$(whoami)
+PROMPT_COMMAND='printf "\033]0;%s@%s\007" "${USER}" "${LOCAL_IP}"'
+export LOCAL_IP
+export USER
+export PROMPT_COMMAND

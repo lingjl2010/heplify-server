@@ -1,0 +1,132 @@
+.commonPipeline: &commonPipeline
+  docker:
+    build:
+      dockerfile: docker/build.Dockerfile
+      versionBy:
+        - docker/golang/Dockerfile
+        - docker/golang/log.go.modified
+    volumes:
+      - /go
+  git:
+    lfs: true
+    dotGit: true
+  runner:
+    network: devnet
+    cpus: 16
+  wework:
+    title: tccc voice
+  env:
+    GOMAXPROCS: 16
+  services:
+    - docker
+    - git-clone-yyds
+    - ssh-agent-for-oa
+
+.buildSoftpbxBase: &buildSoftpbxBase
+  - name: prepare base softpbx image
+    jobs:
+    - name: build Homer Heplify Server
+      imports: https://git.woa.com/tccc/private-config/blob/master/envs.yaml
+      if: '[ "$ORANGE_EVENT" = "push" ]'
+      script:
+        - docker login csighub.tencentyun.com -u $CSIGHUB_USER -p $CSIGHUB_PASSWORD
+        - docker build -t csighub.tencentyun.com/tccc/heplify-server:$ORANGE_COMMIT_SHORT -f softpbx/heplify-server/docker/Dockerfile-tccc .
+        - docker push csighub.tencentyun.com/tccc/heplify-server:$ORANGE_COMMIT_SHORT
+        - docker tag csighub.tencentyun.com/tccc/heplify-server:$ORANGE_COMMIT_SHORT csighub.tencentyun.com/tccc/heplify-server:latest
+        - docker push csighub.tencentyun.com/tccc/heplify-server:latest
+    - name: resolve
+      type: orange-ci:resolve
+      options:
+        key: SOFTPBX_BASE
+
+#.zhiyan: &zhiyan
+#  name: register image to zhiyan
+#  image: mirrors.tencent.com/jeffzzhang/artifact-upload-oci:latest
+#  settings:
+#    project_id: 659 # TCCC的项目ID
+#    app_id: $APP_ID # 应用ID
+#    artifact_type: 1 # docker镜像
+#    artifact_status: 0 # 可发布
+#    artifact_name: $DOCKER_IMAGE # 镜像名称
+#    artifact_tag: $DOCKER_TAG # 镜像版本
+#    display_name: $DISPLAY_NAME # 多容器的时候需要指定制品名称
+
+#.zhiyanpipe: &zhiyanpipe # go build产生的镜像
+#  jobs:
+#    - <<: *zhiyan
+#      env:
+#        DOCKER_IMAGE: csighub.tencentyun.com/tccc/session-server
+#        APP_ID: 152209 # session-server-v2
+
+heplify-server:
+  merge_request:
+    - stages:
+#        - <<: *buildTestImage
+      wework:
+        silent: true
+      services:
+        - docker-with-cache
+    - <<: *commonPipeline
+      stages:
+        - name: commit-lint
+          jobs:
+            - name: make commitlist
+              type: git:commitList
+              options:
+                toFile: commits-data.json
+            - name: do commitlint
+              image: csighub.tencentyun.com/plugins/commitlint:latest
+              settings:
+                from_file: commits-data.json
+            - name: cleanup
+              script: rm commits-data.json
+    - <<: *commonPipeline
+      wework:
+        silent: true
+      stages:
+        - name: check license
+          ifModify: ['go.mod', 'go.sum'] # 仅依赖文件有变化时才跑
+          script: make check-license
+        - name: local lint
+          ifModify: ['**/*.go', 'go.mod', 'go.sum'] # 仅go文件有变化时才跑
+          env:
+            GOLANGCI_LINT_CACHE: /go/golangci-lint-cache
+          script: make lint
+  push:
+    - stages:
+        - <<: *buildSoftpbxBase
+      runner:
+        network: idc-hk
+      services:
+        - docker-with-cache
+$:
+  tag_push:
+    - stages:
+        - type: git:change-log
+          options:
+            publishOnly: true
+            display:
+              feat: 'Features'
+              fix: 'Bug Fixes'
+              refactor: 'Refactors'
+              docs: 'Docs'
+              other: 'Other'
+          exports:
+            latestChangeLog: LATEST_CHANGE_LOG
+        - name: upload release
+          type: git:release
+          options:
+            description: ${LATEST_CHANGE_LOG}
+        - name: message to self
+          type: wework:message
+          options:
+            message: ${LATEST_CHANGE_LOG}
+            lastMsg: "more [Changelog](https://git.woa.com/${ORANGE_REPO_SLUG}/-/releases/${ORANGE_BRANCH})"
+    - stages:
+        - <<: *buildSoftpbxBase
+      runner:
+        network: idc-hk
+      services:
+        - docker-with-cache
+      wework:
+        silent: true
