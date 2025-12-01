@@ -24,8 +24,11 @@ CUSTOMLINT=./custom-gcl$(EXE_SUFFIX)
 GOEXPERIMENTENV=GOEXPERIMENT=synctest
 
 all:
-	$(MAKE) prepare
+#	 $(MAKE) prepare
 	go build ./...
+
+heplify-server:
+	cd softpbx/heplify-server && go build ./...
 
 prepare: # i18n的代码生成依赖源码成功构建，因此需要两步generate
 	go generate -x -skip "i18n" ./...
@@ -246,28 +249,6 @@ softpbx-vpc-docker-build: ${SOFTPBX_VPC_BUILD_TARGETS}
 
 softpbx-vpc-docker-push: ${SOFTPBX_VPC_PUSH_TARGETS}
 
-TESTDB_DIRS:=$(shell find db/migrations/ -maxdepth 1 -type d | grep -v '/$$' )
-TESTDB_BASENAME:=$(foreach dir,$(TESTDB_DIRS),$(shell basename $(dir)))
-
-%.list: db/migrations/%/*.up.sql
-	ls $^ docker/mysql/init.sh > $@
-
-testdblist: $(patsubst %,%.list,$(TESTDB_BASENAME))
-
-pull-testdb:
-	docker pull csighub.tencentyun.com/tccc/mysql:5.7-ccc-latest
-	docker pull csighub.tencentyun.com/tccc/mysql:5.7-ccc_webconsole-latest
-	docker pull csighub.tencentyun.com/tccc/mysql:5.7-opensips_sbc-latest
-	docker pull csighub.tencentyun.com/tccc/mysql:5.7-qidian-latest
-	docker pull csighub.tencentyun.com/tccc/mysql:5.7-bill-latest
-
-testdb: testdblist
-	docker build --pull -f docker/mysql/Dockerfile -t csighub.tencentyun.com/tccc/mysql:5.7-ccc-latest --build-arg DB='ccc' --build-arg SQL_FILE='db/migrations/app/*.up.sql' .
-	docker build --pull -f docker/mysql/Dockerfile -t csighub.tencentyun.com/tccc/mysql:5.7-ccc_webconsole-latest --build-arg DB='ccc_webconsole' --build-arg SQL_FILE='db/migrations/console/*.up.sql' .
-	docker build --pull -f docker/mysql/Dockerfile -t csighub.tencentyun.com/tccc/mysql:5.7-opensips_sbc-latest --build-arg DB='opensips_sbc' --build-arg SQL_FILE='db/migrations/opensips/*.up.sql' .
-	docker build --pull -f docker/mysql/Dockerfile -t csighub.tencentyun.com/tccc/mysql:5.7-qidian-latest --build-arg DB='qidian' --build-arg SQL_FILE='db/migrations/qidian/*.up.sql' .
-	docker build --pull -f docker/mysql/Dockerfile -t csighub.tencentyun.com/tccc/mysql:5.7-bill-latest --build-arg DB='bill' --build-arg SQL_FILE='db/migrations/bill/*.up.sql' .
-
 # 公司内部包暂时忽略
 # github.com/golangci/plugin-module-register/register lint工具包不分发 暂时忽略
 # github.com/richardlehane/msoleps/types excelize依赖 误报忽略 实际为Apache2.0协议
@@ -292,4 +273,4 @@ save-license:
 	go-licenses save --save_path license ${IGNORED_LICENSE} \
 		./...
 
-.PHONY: all test clean all-bin testdblist testdb lint lint-fix lint-install
+.PHONY: all test clean all-bin lint lint-fix lint-install heplify-server

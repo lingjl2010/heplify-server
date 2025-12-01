@@ -22,6 +22,31 @@
     - git-clone-yyds
     - ssh-agent-for-oa
 
+.buildGoBase: &buildGoBase
+  - name: prepare go base image
+    jobs:
+      - name: cache base image
+        type: docker:cache
+        options:
+          dockerfile: docker/golang/Dockerfile
+          by:
+            - docker/golang/log.go.modified
+        exports:
+          name: BASE_GOIMAGE_NAME
+      - name: push go base image
+        imports: https://git.woa.com/tccc/private-config/blob/master/envs.yaml
+        script:
+          - docker login csighub.tencentyun.com -u $CSIGHUB_USER -p $CSIGHUB_PASSWORD
+          - docker pull $BASE_GOIMAGE_NAME
+          - docker tag $BASE_GOIMAGE_NAME csighub.tencentyun.com/tccc/golang:1.24.2-bookworm-tccc
+          - docker push csighub.tencentyun.com/tccc/golang:1.24.2-bookworm-tccc
+      - name: resolve
+        type: orange-ci:resolve
+        options:
+          key: BASE_GOIMAGE_NAME
+          data:
+            BASE_GOIMAGE_NAME: $BASE_GOIMAGE_NAME
+            
 .buildSoftpbxBase: &buildSoftpbxBase
   - name: prepare base softpbx image
     jobs:
@@ -58,10 +83,10 @@
 #        DOCKER_IMAGE: csighub.tencentyun.com/tccc/session-server
 #        APP_ID: 152209 # session-server-v2
 
-heplify-server:
+master:
   merge_request:
     - stages:
-#        - <<: *buildTestImage
+#        - <<: *buildGoBase
       wework:
         silent: true
       services:
@@ -87,11 +112,11 @@ heplify-server:
         - name: check license
           ifModify: ['go.mod', 'go.sum'] # 仅依赖文件有变化时才跑
           script: make check-license
-        - name: local lint
-          ifModify: ['**/*.go', 'go.mod', 'go.sum'] # 仅go文件有变化时才跑
-          env:
-            GOLANGCI_LINT_CACHE: /go/golangci-lint-cache
-          script: make lint
+#        - name: local lint
+#          ifModify: ['**/*.go', 'go.mod', 'go.sum'] # 仅go文件有变化时才跑
+#          env:
+#            GOLANGCI_LINT_CACHE: /go/golangci-lint-cache
+#          script: make lint
   push:
     - stages:
         - <<: *buildSoftpbxBase

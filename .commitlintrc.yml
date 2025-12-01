@@ -1,0 +1,15 @@
+extends:
+  - "@commitlint/config-conventional"
+
+plugins:
+  - references
+
+parserPreset:
+  parserOpts:
+    issuePrefixes: ["#",'--story=','--bug=']
+
+rules:
+  #允许中文
+  subject-case: [0]
+  # feat、fix 必须有单关联
+  references-empty-enum: [2,"never",["fix", "feat"]]

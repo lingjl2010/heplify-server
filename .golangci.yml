@@ -1,0 +1,43 @@
+run:
+  tests: true
+linters-settings:
+  asasalint:
+    exclude:
+      - sqlx.In
+  funlen:
+    lines: 160
+    statements: 160
+  gci:
+    sections:
+      - standard
+      - default
+      - prefix(git.code.oa.com)
+      - prefix(git.woa.com)
+      - prefix(git.woa.com/tccc/voice_core)
+    custom-order: true
+  custom:
+    lint:
+      type: module
+linters:
+  disable-all: true
+  enable:
+    - asasalint
+    - bidichk
+    # - dupl 重复代码
+    # - dupword
+    - gci
+    - ginkgolinter
+    # - gosec 安全检查
+    # - gosmopolitan i18n检查
+    - lint
+    - copyloopvar
+    - misspell
+    - funlen
+    - usetesting
+    - protogetter
+    - govet
+issues:
+  exclude-rules:
+    # 测试代码不强制要求使用Context类函数
+    - path: _test\.go
+      text: "sqlctx: "

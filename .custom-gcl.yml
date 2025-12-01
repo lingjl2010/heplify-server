@@ -1,0 +1,5 @@
+version: v1.64.5
+plugins:
+  - module: 'git.woa.com/tccc/voice_core'
+    import: 'git.woa.com/tccc/voice_core/lint/module'
+    path: .
